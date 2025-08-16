@@ -13,6 +13,8 @@
 
 
 ![img1.png](img%2Fimg1.png)
+
+
 2. Complete el método __main__ de la clase CountMainThreads para que:
     1. Cree 3 hilos de tipo CountThread, asignándole al primero el intervalo [0..99], al segundo [99..199], y al tercero [200..299].
     2. Inicie los tres hilos con 'start()'.
