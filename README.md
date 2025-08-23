@@ -88,10 +88,68 @@ Para 'refactorizar' este código, y hacer que explote la capacidad multi-núcleo
 
 2. Agregue al método 'checkHost' un parámetro entero N, correspondiente al número de hilos entre los que se va a realizar la búsqueda (recuerde tener en cuenta si N es par o impar!). Modifique el código de este método para que divida el espacio de búsqueda entre las N partes indicadas, y paralelice la búsqueda a través de N hilos. Haga que dicha función espere hasta que los N hilos terminen de resolver su respectivo sub-problema, agregue las ocurrencias encontradas por cada hilo a la lista que retorna el método, y entonces calcule (sumando el total de ocurrencuas encontradas por cada hilo) si el número de ocurrencias es mayor o igual a _BLACK_LIST_ALARM_COUNT_. Si se da este caso, al final se DEBE reportar el host como confiable o no confiable, y mostrar el listado con los números de las listas negras respectivas. Para lograr este comportamiento de 'espera' revise el método [join](https://docs.oracle.com/javase/tutorial/essential/concurrency/join.html) del API de concurrencia de Java. Tenga también en cuenta:
 
+
     * Dentro del método checkHost Se debe mantener el LOG que informa, antes de retornar el resultado, el número de listas negras revisadas VS. el número de listas negras total (línea 60). Se debe garantizar que dicha información sea verídica bajo el nuevo esquema de procesamiento en paralelo planteado.
 
     * Se sabe que el HOST 202.24.34.55 está reportado en listas negras de una forma más dispersa, y que el host 212.24.24.55 NO está en ninguna lista negra.
+   ```
+   public CheckResult checkHost(String ipAddress, int numThreads) {
+        List<Integer> blackListOccurrences = new LinkedList<>();
+        int occurrencesCount = 0;
 
+        HostBlacklistsDataSourceFacade skds = HostBlacklistsDataSourceFacade.getInstance();
+        int totalServers = skds.getRegisteredServersCount();
+
+        if (numThreads <= 0) numThreads = 1;
+        if (numThreads > totalServers) numThreads = totalServers;
+
+        int segmentSize = totalServers / numThreads;
+        int remainder = totalServers % numThreads;
+
+        List<BlacklistSearchThread> threads = new ArrayList<>();
+        int start = 0;
+        for (int i = 0; i < numThreads; i++) {
+            int end = start + segmentSize + (i < remainder ? 1 : 0);
+            threads.add(new BlacklistSearchThread(ipAddress, start, end, skds));
+            start = end;
+        }
+
+        LOG.log(Level.INFO, "Starting parallel check for IP: {0} with {1} threads",
+                new Object[]{ipAddress, numThreads});
+
+        threads.forEach(Thread::start);
+        threads.forEach(t -> {
+            try {
+                t.join();
+            } catch (InterruptedException e) {
+                LOG.log(Level.SEVERE, "Thread interrupted", e);
+                Thread.currentThread().interrupt();
+            }
+        });
+
+        int reviewedServers = 0;
+        for (BlacklistSearchThread t : threads) {
+            blackListOccurrences.addAll(t.getBlackListOccurrences());
+            occurrencesCount += t.getOccurrencesCount();
+            reviewedServers += (t.getEndIndex() - t.getStartIndex());
+        }
+
+        if (occurrencesCount >= BLACK_LIST_ALARM_COUNT) {
+            skds.reportAsNotTrustworthy(ipAddress);
+            LOG.log(Level.SEVERE, "IP {0} is NOT trustworthy. Found in {1} blacklists.",
+                    new Object[]{ipAddress, occurrencesCount});
+        } else {
+            skds.reportAsTrustworthy(ipAddress);
+            LOG.log(Level.INFO, "IP {0} is trustworthy. Found in {1} blacklists.",
+                    new Object[]{ipAddress, occurrencesCount});
+        }
+
+        LOG.log(Level.INFO, "Blacklist check completed. Reviewed: {0}/{1} servers.",
+                new Object[]{reviewedServers, totalServers});
+
+        return new CheckResult(blackListOccurrences, reviewedServers);
+    }
+   ```
 
 **Parte II.I Para discutir la próxima clase (NO para implementar aún)**
 
