@@ -34,7 +34,7 @@
 
 ### Con Run
 
-![img_2.png](img_2.png)
+<img width="1157" height="356" alt="image" src="https://github.com/user-attachments/assets/22b48b98-9bba-4c7d-a6ff-6685fb66e86f" />
 
 ### Ejecucion
 
