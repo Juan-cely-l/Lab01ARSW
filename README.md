@@ -26,7 +26,7 @@
 ![img.png](img.png)
 ### Ejecucion
 
-![img_1.png](img_1.png)
+<img width="413" height="479" alt="image" src="https://github.com/user-attachments/assets/0ac876f4-5d6d-4d21-8f9a-65d10c719d46" />
 
 * Como se puede evidenciar , Iniciando los hilos con 'start()', se ejecutan aleatoriamente mezclando los intervalos.
 
@@ -38,7 +38,7 @@
 
 ### Ejecucion
 
-![img_3.png](img_3.png)
+<img width="992" height="677" alt="image" src="https://github.com/user-attachments/assets/6ba74e4d-b968-40e7-87a7-dab8b310d47a" />
 * Como se puede evidenciar , Iniciando los hilos con 'run()', se ejecutan en orden y por lo tanto no  mezclan los intervalos.
 
 
@@ -77,6 +77,14 @@ Al programa de prueba provisto (Main), le toma sólo algunos segundos análizar 
 Para 'refactorizar' este código, y hacer que explote la capacidad multi-núcleo de la CPU del equipo, realice lo siguiente:
 
 1. Cree una clase de tipo Thread que represente el ciclo de vida de un hilo que haga la búsqueda de un segmento del conjunto de servidores disponibles. Agregue a dicha clase un método que permita 'preguntarle' a las instancias del mismo (los hilos) cuantas ocurrencias de servidores maliciosos ha encontrado o encontró.
+    <img width="956" height="519" alt="image" src="https://github.com/user-attachments/assets/48029aa6-7cb7-4fbd-87ff-69c868cf938e" />
+
+   <img width="893" height="536" alt="image" src="https://github.com/user-attachments/assets/00ce6ab2-1725-4df6-a376-d672109369fb" />
+   <img width="844" height="536" alt="image" src="https://github.com/user-attachments/assets/bfa468c3-974c-4c3c-b8d4-0d5510fe582d" />
+
+   
+
+   
 
 2. Agregue al método 'checkHost' un parámetro entero N, correspondiente al número de hilos entre los que se va a realizar la búsqueda (recuerde tener en cuenta si N es par o impar!). Modifique el código de este método para que divida el espacio de búsqueda entre las N partes indicadas, y paralelice la búsqueda a través de N hilos. Haga que dicha función espere hasta que los N hilos terminen de resolver su respectivo sub-problema, agregue las ocurrencias encontradas por cada hilo a la lista que retorna el método, y entonces calcule (sumando el total de ocurrencuas encontradas por cada hilo) si el número de ocurrencias es mayor o igual a _BLACK_LIST_ALARM_COUNT_. Si se da este caso, al final se DEBE reportar el host como confiable o no confiable, y mostrar el listado con los números de las listas negras respectivas. Para lograr este comportamiento de 'espera' revise el método [join](https://docs.oracle.com/javase/tutorial/essential/concurrency/join.html) del API de concurrencia de Java. Tenga también en cuenta:
 
@@ -94,10 +102,19 @@ La estrategia de paralelismo antes implementada es ineficiente en ciertos casos,
 A partir de lo anterior, implemente la siguiente secuencia de experimentos para realizar las validación de direcciones IP dispersas (por ejemplo 202.24.34.55), tomando los tiempos de ejecución de los mismos (asegúrese de hacerlos en la misma máquina):
 
 1. Un solo hilo.
+<img width="1090" height="478" alt="image" src="https://github.com/user-attachments/assets/cdda289a-2a44-497a-8072-258928216788" />
+
 2. Tantos hilos como núcleos de procesamiento (haga que el programa determine esto haciendo uso del [API Runtime](https://docs.oracle.com/javase/7/docs/api/java/lang/Runtime.html)).
+   <img width="1090" height="478" alt="image" src="https://github.com/user-attachments/assets/7cc182be-9c74-41a8-a387-92aa4e33b040" />
+
 3. Tantos hilos como el doble de núcleos de procesamiento.
+   <img width="1083" height="488" alt="image" src="https://github.com/user-attachments/assets/b49f4c3d-8b07-4c63-809f-28d3078c346a" />
+
 4. 50 hilos.
+   <img width="1083" height="488" alt="image" src="https://github.com/user-attachments/assets/a169ee5b-5863-4f3d-99ac-67f31c06e8c6" />
+
 5. 100 hilos.
+<img width="1083" height="488" alt="image" src="https://github.com/user-attachments/assets/4c5e303d-16a3-490a-a3cb-e276d082deeb" />
 
 Al iniciar el programa ejecute el monitor jVisualVM, y a medida que corran las pruebas, revise y anote el consumo de CPU y de memoria en cada caso. ![](img/jvisualvm.png)
 
@@ -112,6 +129,74 @@ Con lo anterior, y con los tiempos de ejecución dados, haga una gráfica de tie
 2. Cómo se comporta la solución usando tantos hilos de procesamiento como núcleos comparado con el resultado de usar el doble de éste?.
 
 3. De acuerdo con lo anterior, si para este problema en lugar de 100 hilos en una sola CPU se pudiera usar 1 hilo en cada una de 100 máquinas hipotéticas, la ley de Amdahls se aplicaría mejor?. Si en lugar de esto se usaran c hilos en 100/c máquinas distribuidas (siendo c es el número de núcleos de dichas máquinas), se mejoraría?. Explique su respuesta.
+
+
+## ¿Por qué el mejor desempeño no se logra con 500 hilos?
+
+Según la Ley de Amdahl, teóricamente el desempeño debería mejorar con más hilos. Sin embargo, en la práctica esto no ocurre por varias razones:
+
+1. **Sobrecarga de gestión de hilos**: Crear, programar y realizar cambios de contexto entre tantos hilos genera un costo computacional significativo.
+
+2. **Recursos limitados**: Si un sistema tiene, por ejemplo, 8 núcleos, tener 500 hilos significa que la mayoría estarán en espera, causando:
+   - Contención por recursos compartidos
+   - Mayor tiempo en cambios de contexto
+   - Saturación de la memoria caché
+
+3. **Fracción no paralelizable**: La Ley de Amdahl establece que el speedup está limitado por la parte secuencial del programa, siguiendo la fórmula:
+   ```
+   S(n) = 1 / ((1-P) + P/n)
+   ```
+   Cuando n (número de hilos) se vuelve muy grande, el límite del speedup es 1/(1-P).
+
+## Comparación con 200 hilos
+
+Con 200 hilos comparado con 500, probablemente haya menos sobrecarga, pero sigue siendo excesivo para la mayoría de sistemas. El rendimiento suele seguir una curva donde:
+- Primero aumenta al añadir hilos
+- Alcanza un punto óptimo (generalmente cercano al número de núcleos o un pequeño múltiplo)
+- Luego decrece debido a la sobrecarga
+
+## Hilos por núcleo vs. doble de hilos
+
+Usar tantos hilos como núcleos disponibles suele ser una buena estrategia inicial, ya que:
+- Cada hilo puede ejecutarse en su propio núcleo sin interrupciones
+- Se minimiza la sobrecarga por cambios de contexto
+
+Usar el doble de hilos que núcleos puede mejorar el rendimiento en casos donde:
+- Los hilos ocasionalmente esperan por operaciones de E/S
+- Hay períodos de inactividad que pueden aprovecharse
+
+Sin embargo, para tareas intensivas en CPU, duplicar el número de hilos generalmente no ofrece beneficios significativos y puede reducir el rendimiento.
+
+## Distribución en múltiples máquinas
+
+### 100 hilos en una CPU vs. 1 hilo en 100 máquinas
+
+La Ley de Amdahl sigue aplicándose en computación distribuida, pero con consideraciones adicionales:
+
+- **Ventajas**:
+  - Cada máquina tiene recursos dedicados (CPU, memoria, caché)
+  - Se evita la contención local por recursos
+
+- **Desventajas**:
+  - Se introduce latencia de red
+  - Hay sobrecarga por comunicación entre máquinas
+  - La parte no paralelizable puede volverse un cuello de botella aún mayor
+
+Si el problema requiere poca comunicación entre hilos, la distribución en 100 máquinas podría ser más eficiente. Sin embargo, para tareas que requieren comunicación frecuente, la sobrecarga de red podría anular las ventajas.
+
+### c hilos en 100/c máquinas distribuidas
+
+Este enfoque híbrido suele ser el más eficiente porque:
+
+1. **Optimiza el paralelismo local**: Aprovecha los núcleos disponibles en cada máquina
+2. **Reduce la sobrecarga de comunicación**: Menos máquinas significa menos comunicación por red
+3. **Equilibra recursos**: Aprovecha tanto el paralelismo dentro de cada nodo como entre nodos
+
+La configuración óptima dependerá de:
+- Las características específicas del problema
+- El patrón de comunicación entre hilos
+- La relación entre la parte paralelizable y secuencial del algoritmo
+- La arquitectura de hardware disponible
 
 
 
