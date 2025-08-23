@@ -16,42 +16,54 @@ public class PerformanceEvaluation {
     public static void main(String[] args) {
         HostBlackListsValidator validator = new HostBlackListsValidator();
         
-        // Test IPs: 202.24.34.55 (dispersed), 212.24.24.55 (not found), 200.24.34.55 (early found)
-        String[] testIPs = {"202.24.34.55", "212.24.24.55", "200.24.34.55"};
-        
-        // Different thread configurations
+        // Different thread configurations as required
         int cores = Runtime.getRuntime().availableProcessors();
         int[] threadCounts = {1, cores, cores * 2, 50, 100};
         
         System.out.println("=== BlackList Search Performance Evaluation ===");
         System.out.println("Available CPU cores: " + cores);
+        System.out.println("Thread configurations: 1, " + cores + " (cores), " + 
+            (cores * 2) + " (2*cores), 50, 100");
         System.out.println();
         
-        for (String ip : testIPs) {
-            System.out.println("Testing IP: " + ip);
-            System.out.println("Thread Count | Time (ms) | Occurrences Found");
-            System.out.println("-------------|-----------|------------------");
+        // Test with dispersed IP that will show performance differences
+        String testIP = "202.24.34.55";
+        System.out.println("Testing with IP: " + testIP + " (dispersed across blacklists)");
+        System.out.println();
+        
+        System.out.println("Thread Count | Time (ms) | Speedup | Efficiency | Occurrences");
+        System.out.println("-------------|-----------|---------|------------|------------");
+        
+        long baselineTime = 0;
+        
+        for (int i = 0; i < threadCounts.length; i++) {
+            int threadCount = threadCounts[i];
             
-            for (int threadCount : threadCounts) {
-                long startTime = System.currentTimeMillis();
-                List<Integer> results = validator.checkHost(ip, threadCount);
-                long endTime = System.currentTimeMillis();
-                long executionTime = endTime - startTime;
-                
-                System.out.printf("%12d | %9d | %17d%n", 
-                    threadCount, executionTime, results.size());
+            // Warm up
+            if (i == 0) {
+                validator.checkHost(testIP, threadCount);
             }
             
-            // Also test single threaded original method for comparison
             long startTime = System.currentTimeMillis();
-            List<Integer> results = validator.checkHost(ip);
+            List<Integer> results = validator.checkHost(testIP, threadCount);
             long endTime = System.currentTimeMillis();
             long executionTime = endTime - startTime;
             
-            System.out.printf("%12s | %9d | %17d%n", 
-                "Original", executionTime, results.size());
+            if (i == 0) {
+                baselineTime = executionTime;
+            }
             
-            System.out.println();
+            double speedup = (double) baselineTime / executionTime;
+            double efficiency = speedup / threadCount * 100;
+            
+            System.out.printf("%12d | %9d | %6.2fx | %9.1f%% | %11d%n", 
+                threadCount, executionTime, speedup, efficiency, results.size());
         }
+        
+        System.out.println();
+        System.out.println("Analysis:");
+        System.out.println("- Speedup: How many times faster compared to 1 thread");
+        System.out.println("- Efficiency: Speedup / Thread count * 100% (ideal = 100%)");
+        System.out.println("- Higher efficiency = better utilization of threads");
     }
 }
